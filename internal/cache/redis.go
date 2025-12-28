@@ -36,14 +36,20 @@ func Set(ctx context.Context, key string, value interface{}, ttl time.Duration) 
 	if err != nil {
 		return err
 	}
-	return Client.Set(ctx, key, data, ttl).Err()
+	err = Client.Set(ctx, key, data, ttl).Err()
+	if err == nil {
+		log.Printf("[CACHE SET] %s", key)
+	}
+	return err
 }
 
 func Get(ctx context.Context, key string, dest interface{}) error {
 	data, err := Client.Get(ctx, key).Bytes()
 	if err != nil {
+		log.Printf("[CACHE MISS] %s", key)
 		return err
 	}
+	log.Printf("[CACHE HIT] %s", key)
 	return json.Unmarshal(data, dest)
 }
 
