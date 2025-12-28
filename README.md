@@ -2,6 +2,20 @@
 
 A music analytics backend built with Go, featuring a real-time dashboard for exploring 50k Spotify tracks.
 
+## Screenshots
+
+### Dashboard
+![Dashboard](docs/screenshots/dashboard.png)
+
+### Tracks
+![Tracks](docs/screenshots/tracks.png)
+
+### Artists
+![Artists](docs/screenshots/artists.png)
+
+### Analytics
+![Analytics](docs/screenshots/analytics.png)
+
 ## Features
 
 - 50k Spotify tracks dataset
@@ -97,6 +111,8 @@ spotistats/
 │   └── tracks.csv     # Dataset
 ├── scripts/
 │   └── start.sh       # Startup script
+├── docs/
+│   └── screenshots/   # UI screenshots
 ├── docker-compose.yml
 ├── Dockerfile
 └── README.md
