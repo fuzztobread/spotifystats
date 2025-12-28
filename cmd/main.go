@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"spotistats/internal/database"
 	"spotistats/internal/handlers"
 	"spotistats/internal/loader"
 
@@ -12,14 +13,24 @@ import (
 )
 
 func main() {
+	err := database.Connect("postgres://spotistats:spotistats@localhost:5432/spotistats")
+	if err != nil {
+		log.Fatal("failed to connect to db:", err)
+	}
+	defer database.Close()
+
+	if err := database.Migrate(); err != nil {
+		log.Fatal("migration failed:", err)
+	}
+
+	// load CSV
 	tracks, err := loader.LoadTracksFromCSV("data/tracks.csv")
 	if err != nil {
 		log.Fatal("failed to load CSV:", err)
 	}
 	log.Printf("loaded %d tracks", len(tracks))
-	if len(tracks) > 0 {
-		log.Printf("first track: %+v", tracks[0])
-	}
+
+	// inject into handlers (still in-memory for now)
 	handlers.Tracks = tracks
 
 	e := echo.New()
