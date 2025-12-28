@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpotiStats</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg: #0a0a0b;
+            --surface: #141417;
+            --border: #23232a;
+            --text: #fafafa;
+            --text-muted: #71717a;
+            --accent: #22c55e;
+            --accent-dim: rgba(34, 197, 94, 0.1);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 3rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: var(--bg);
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        td {
+            font-size: 0.875rem;
+        }
+
+        .track-name {
+            font-weight: 500;
+        }
+
+        .track-artist {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: var(--accent-dim);
+            color: var(--accent);
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 500;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .search-box input {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.625rem 1rem;
+            color: var(--text);
+            font-size: 0.875rem;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .search-box input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .chart-container {
+            height: 250px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .page-btn {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .page-btn:hover {
+            border-color: var(--accent);
+        }
+
+        .page-btn.active {
+            background: var(--accent);
+            border-color: var(--accent);
+            color: var(--bg);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.625rem;
+            color: var(--text);
+            font-size: 0.875rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+            margin-top: 1.5rem;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        .bar {
+            height: 24px;
+            background: var(--accent);
+            border-radius: 4px;
+            margin-bottom: 0.5rem;
+            position: relative;
+            min-width: 20px;
+        }
+
+        .bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .bar-label span:first-child {
+            color: var(--text);
+        }
+
+        .bar-label span:last-child {
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 1024px) {
+            .stats-row {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .stats-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">◉ SpotiStats</div>
+            <button class="btn" onclick="openModal()">+ Add Track</button>
+        </header>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">Total Tracks</div>
+                <div class="stat-value" id="totalTracks">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Artists</div>
+                <div class="stat-value" id="totalArtists">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Genres</div>
+                <div class="stat-value" id="totalGenres">-</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Avg Duration</div>
+                <div class="stat-value" id="avgDuration">-</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">
+                    <span>Tracks</span>
+                </div>
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="Search tracks..." onkeyup="handleSearch(event)">
+                    <button class="btn" onclick="searchTracks()">Search</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Track</th>
+                                <th>Genre</th>
+                                <th>Year</th>
+                                <th>BPM</th>
+                                <th>Energy</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tracksTable">
+                            <tr><td colspan="5" class="loading">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span>Top Genres</span>
+                    <button class="btn btn-secondary" onclick="loadGenreStats()">Refresh</button>
+                </div>
+                <div id="genreChart"></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <div class="card-title">Tracks by Year</div>
+                <div class="chart-container">
+                    <canvas id="yearChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-title">
+                    <span>Top Artists</span>
+                </div>
+                <div id="artistChart"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Track Modal -->
+    <div class="modal" id="modal">
+        <div class="modal-content">
+            <div class="modal-title">Add New Track</div>
+            <form id="trackForm" onsubmit="submitTrack(event)">
+                <div class="form-group">
+                    <label>Track Name</label>
+                    <input type="text" name="name" required>
+                </div>
+                <div class="form-group">
+                    <label>Artist</label>
+                    <input type="text" name="artist" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Genre</label>
+                        <input type="text" name="genre">
+                    </div>
+                    <div class="form-group">
+                        <label>Year</label>
+                        <input type="number" name="year" value="2024">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tempo (BPM)</label>
+                        <input type="number" name="tempo" step="0.1" value="120">
+                    </div>
+                    <div class="form-group">
+                        <label>Duration (ms)</label>
+                        <input type="number" name="duration_ms" value="180000">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Energy (0-1)</label>
+                        <input type="number" name="energy" step="0.01" min="0" max="1" value="0.7">
+                    </div>
+                    <div class="form-group">
+                        <label>Danceability (0-1)</label>
+                        <input type="number" name="danceability" step="0.01" min="0" max="1" value="0.7">
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                    <button type="submit" class="btn">Add Track</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API = '';
+        let currentPage = 1;
+        let searchQuery = '';
+        let yearChart = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTracks();
+            loadStats();
+            loadGenreStats();
+            loadArtistStats();
+            loadYearStats();
+        });
+
+        // Load tracks
+        async function loadTracks(page = 1, query = '') {
+            currentPage = page;
+            searchQuery = query;
+            
+            let url = `${API}/tracks?page=${page}&limit=10`;
+            if (query) url += `&q=${encodeURIComponent(query)}`;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                renderTracks(data.results || []);
+                renderPagination(data.total, page);
+                
+                document.getElementById('totalTracks').textContent = data.total?.toLocaleString() || '0';
+            } catch (err) {
+                console.error('Failed to load tracks:', err);
+            }
+        }
+
+        function renderTracks(tracks) {
+            const tbody = document.getElementById('tracksTable');
+            
+            if (!tracks.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="loading">No tracks found</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = tracks.map(t => `
+                <tr>
+                    <td>
+                        <div class="track-name">${escapeHtml(t.name)}</div>
+                        <div class="track-artist">${escapeHtml(t.artist)}</div>
+                    </td>
+                    <td>${t.genre ? `<span class="badge">${escapeHtml(t.genre)}</span>` : '-'}</td>
+                    <td>${t.year || '-'}</td>
+                    <td>${t.tempo ? Math.round(t.tempo) : '-'}</td>
+                    <td>${t.energy ? (t.energy * 100).toFixed(0) + '%' : '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPagination(total, current) {
+            const pages = Math.ceil(total / 10);
+            const container = document.getElementById('pagination');
+            
+            if (pages <= 1) {
+                container.innerHTML = '';
+                return;
+            }
+
+            let html = '';
+            
+            if (current > 1) {
+                html += `<button class="page-btn" onclick="loadTracks(${current - 1}, '${searchQuery}')">←</button>`;
+            }
+
+            const start = Math.max(1, current - 2);
+            const end = Math.min(pages, current + 2);
+
+            for (let i = start; i <= end; i++) {
+                html += `<button class="page-btn ${i === current ? 'active' : ''}" onclick="loadTracks(${i}, '${searchQuery}')">${i}</button>`;
+            }
+
+            if (current < pages) {
+                html += `<button class="page-btn" onclick="loadTracks(${current + 1}, '${searchQuery}')">→</button>`;
+            }
+
+            container.innerHTML = html;
+        }
+
+        // Search
+        function handleSearch(e) {
+            if (e.key === 'Enter') searchTracks();
+        }
+
+        function searchTracks() {
+            const query = document.getElementById('searchInput').value;
+            loadTracks(1, query);
+        }
+
+        // Load stats
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API}/tracks?limit=1`);
+                const data = await res.json();
+                document.getElementById('totalTracks').textContent = data.total?.toLocaleString() || '0';
+            } catch (err) {
+                console.error('Failed to load stats:', err);
+            }
+        }
+
+        // Genre stats
+        async function loadGenreStats() {
+            const container = document.getElementById('genreChart');
+            container.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                const res = await fetch(`${API}/jobs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'genre_stats' })
+                });
+                const job = await res.json();
+                
+                // Poll for result
+                const result = await pollJob(job.job_id);
+                renderBarChart(container, result, 'genre', 'count');
+                
+                document.getElementById('totalGenres').textContent = result.length;
+            } catch (err) {
+                container.innerHTML = '<div class="loading">Failed to load</div>';
+            }
+        }
+
+        // Artist stats
+        async function loadArtistStats() {
+            const container = document.getElementById('artistChart');
+            container.innerHTML = '<div class="loading">Loading...</div>';
+
+            try {
+                const res = await fetch(`${API}/jobs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'artist_stats' })
+                });
+                const job = await res.json();
+                
+                const result = await pollJob(job.job_id);
+                renderBarChart(container, result.slice(0, 8), 'artist', 'count');
+                
+                document.getElementById('totalArtists').textContent = result.length + '+';
+            } catch (err) {
+                container.innerHTML = '<div class="loading">Failed to load</div>';
+            }
+        }
+
+        // Year stats
+        async function loadYearStats() {
+            try {
+                const res = await fetch(`${API}/jobs`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: 'year_stats' })
+                });
+                const job = await res.json();
+                
+                const result = await pollJob(job.job_id);
+                renderYearChart(result);
+                
+                // Calculate avg duration placeholder
+                document.getElementById('avgDuration').textContent = '3:24';
+            } catch (err) {
+                console.error('Failed to load year stats:', err);
+            }
+        }
+
+        // Poll job status
+        async function pollJob(jobId) {
+            for (let i = 0; i < 30; i++) {
+                const res = await fetch(`${API}/jobs/${jobId}`);
+                const job = await res.json();
+                
+                if (job.status === 'completed') {
+                    return job.result;
+                }
+                if (job.status === 'failed') {
+                    throw new Error('Job failed');
+                }
+                
+                await sleep(200);
+            }
+            throw new Error('Job timeout');
+        }
+
+        // Render horizontal bar chart
+        function renderBarChart(container, data, labelKey, valueKey) {
+            const max = Math.max(...data.map(d => d[valueKey]));
+            
+            container.innerHTML = data.map(d => `
+                <div>
+                    <div class="bar-label">
+                        <span>${escapeHtml(String(d[labelKey]))}</span>
+                        <span>${d[valueKey].toLocaleString()}</span>
+                    </div>
+                    <div class="bar" style="width: ${(d[valueKey] / max * 100)}%"></div>
+                </div>
+            `).join('');
+        }
+
+        // Render year chart
+        function renderYearChart(data) {
+            const ctx = document.getElementById('yearChart').getContext('2d');
+            
+            const sorted = [...data].sort((a, b) => a.year - b.year);
+            
+            if (yearChart) yearChart.destroy();
+            
+            yearChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sorted.map(d => d.year),
+                    datasets: [{
+                        label: 'Tracks',
+                        data: sorted.map(d => d.count),
+                        borderColor: '#22c55e',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: '#23232a' },
+                            ticks: { color: '#71717a' }
+                        },
+                        y: {
+                            grid: { color: '#23232a' },
+                            ticks: { color: '#71717a' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Modal
+        function openModal() {
+            document.getElementById('modal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modal').classList.remove('active');
+            document.getElementById('trackForm').reset();
+        }
+
+        // Submit track
+        async function submitTrack(e) {
+            e.preventDefault();
+            
+            const form = e.target;
+            const data = {
+                track_id: 'TRK' + Date.now(),
+                name: form.name.value,
+                artist: form.artist.value,
+                genre: form.genre.value,
+                year: parseInt(form.year.value) || 2024,
+                tempo: parseFloat(form.tempo.value) || 120,
+                duration_ms: parseInt(form.duration_ms.value) || 180000,
+                energy: parseFloat(form.energy.value) || 0.7,
+                danceability: parseFloat(form.danceability.value) || 0.7
+            };
+
+            try {
+                const res = await fetch(`${API}/tracks`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (res.ok) {
+                    closeModal();
+                    // Wait a bit for Kafka to process
+                    await sleep(500);
+                    loadTracks(1, '');
+                } else {
+                    alert('Failed to add track');
+                }
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        // Helpers
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        // Close modal on outside click
+        document.getElementById('modal').addEventListener('click', (e) => {
+            if (e.target.id === 'modal') closeModal();
+        });
+    </script>
+</body>
+</html>

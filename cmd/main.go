@@ -11,9 +11,19 @@ import (
 	"spotistats/internal/jobs"
 	"spotistats/internal/kafka"
 
+	_ "spotistats/docs" // swagger docs
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	echoSwagger "github.com/swaggo/echo-swagger"
 )
+
+// @title SpotiStats API
+// @version 1.0
+// @description Music analytics backend with Kafka, Redis, and Postgres
+
+// @host localhost:8080
+// @BasePath /
 
 func main() {
 	// connect to postgres
@@ -45,6 +55,9 @@ func main() {
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
 
+	// swagger
+	e.GET("/swagger/*", echoSwagger.WrapHandler)
+
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{
 			"status": "ok",
@@ -59,6 +72,10 @@ func main() {
 	// job routes
 	e.POST("/jobs", handlers.CreateJob)
 	e.GET("/jobs/:id", handlers.GetJobStatus)
+
+	// Add after other routes
+	e.GET("/", handlers.ServeDashboard)
+	e.Static("/static", "web/static")
 
 	e.Logger.Fatal(e.Start(":8080"))
 }

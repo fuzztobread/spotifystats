@@ -10,9 +10,19 @@ import (
 )
 
 type CreateJobRequest struct {
-	Type string `json:"type"`
+	Type string `json:"type" example:"genre_stats"`
 }
 
+// CreateJob godoc
+// @Summary Create a background job
+// @Description Queue a background job for processing
+// @Tags jobs
+// @Accept json
+// @Produce json
+// @Param job body CreateJobRequest true "Job type (genre_stats, artist_stats, year_stats)"
+// @Success 202 {object} map[string]string
+// @Failure 400 {object} map[string]string
+// @Router /jobs [post]
 func CreateJob(c echo.Context) error {
 	var req CreateJobRequest
 	if err := c.Bind(&req); err != nil {
@@ -21,7 +31,6 @@ func CreateJob(c echo.Context) error {
 		})
 	}
 
-	// validate job type
 	validTypes := map[string]bool{
 		"genre_stats":  true,
 		"artist_stats": true,
@@ -52,6 +61,16 @@ func CreateJob(c echo.Context) error {
 	})
 }
 
+// GetJobStatus godoc
+// @Summary Get job status
+// @Description Get status and result of a background job
+// @Tags jobs
+// @Accept json
+// @Produce json
+// @Param id path string true "Job ID"
+// @Success 200 {object} jobs.Job
+// @Failure 404 {object} map[string]string
+// @Router /jobs/{id} [get]
 func GetJobStatus(c echo.Context) error {
 	jobID := c.Param("id")
 

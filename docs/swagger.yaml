@@ -1,0 +1,228 @@
+basePath: /
+definitions:
+  handlers.CreateJobRequest:
+    properties:
+      type:
+        example: genre_stats
+        type: string
+    type: object
+  jobs.Job:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      payload:
+        additionalProperties: true
+        type: object
+      result: {}
+      status:
+        type: string
+      type:
+        type: string
+    type: object
+  models.Track:
+    properties:
+      acousticness:
+        type: number
+      artist:
+        type: string
+      danceability:
+        type: number
+      duration_ms:
+        type: integer
+      energy:
+        type: number
+      genre:
+        type: string
+      instrumentalness:
+        type: number
+      key:
+        type: integer
+      liveness:
+        type: number
+      loudness:
+        type: number
+      mode:
+        type: integer
+      name:
+        type: string
+      speechiness:
+        type: number
+      spotify_id:
+        type: string
+      spotify_preview_url:
+        type: string
+      tags:
+        type: string
+      tempo:
+        type: number
+      time_signature:
+        type: integer
+      track_id:
+        type: string
+      valence:
+        type: number
+      year:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Music analytics backend with Kafka, Redis, and Postgres
+  title: SpotiStats API
+  version: "1.0"
+paths:
+  /jobs:
+    post:
+      consumes:
+      - application/json
+      description: Queue a background job for processing
+      parameters:
+      - description: Job type (genre_stats, artist_stats, year_stats)
+        in: body
+        name: job
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.CreateJobRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create a background job
+      tags:
+      - jobs
+  /jobs/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get status and result of a background job
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/jobs.Job'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get job status
+      tags:
+      - jobs
+  /tracks:
+    get:
+      consumes:
+      - application/json
+      description: Get paginated list of tracks with optional filters
+      parameters:
+      - default: 1
+        description: Page number
+        in: query
+        name: page
+        type: integer
+      - default: 20
+        description: Items per page
+        in: query
+        name: limit
+        type: integer
+      - description: Search by track name
+        in: query
+        name: q
+        type: string
+      - description: Filter by genre
+        in: query
+        name: genre
+        type: string
+      - description: Filter by artist
+        in: query
+        name: artist
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Get tracks
+      tags:
+      - tracks
+    post:
+      consumes:
+      - application/json
+      description: Add a new track via Kafka queue
+      parameters:
+      - description: Track data
+        in: body
+        name: track
+        required: true
+        schema:
+          $ref: '#/definitions/models.Track'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Create track
+      tags:
+      - tracks
+  /tracks/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Get a single track by track_id or spotify_id
+      parameters:
+      - description: Track ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Track'
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get track by ID
+      tags:
+      - tracks
+swagger: "2.0"
