@@ -38,7 +38,7 @@ A music analytics backend built with Go, featuring a real-time dashboard for exp
 ## Quick Start
 ```bash
 # Clone
-git clone https://github.com/yourusername/spotistats.git
+git clone https://github.com/fuzztobread/spotistats.git
 cd spotistats
 
 # Setup env
