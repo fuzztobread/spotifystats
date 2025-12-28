@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"log"
 	"net/http"
 
@@ -9,15 +8,13 @@ import (
 	"spotistats/internal/config"
 	"spotistats/internal/database"
 	"spotistats/internal/handlers"
-	"spotistats/internal/jobs"
-	"spotistats/internal/kafka"
 
 	_ "spotistats/docs"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	echoSwagger "github.com/swaggo/echo-swagger"
 	"github.com/spf13/cobra"
+	echoSwagger "github.com/swaggo/echo-swagger"
 )
 
 var serveCmd = &cobra.Command{
@@ -40,16 +37,6 @@ func runServe(cmd *cobra.Command, args []string) {
 		log.Fatal("failed to connect to redis:", err)
 	}
 	defer cache.Close()
-
-	// init kafka
-	kafka.InitProducer(cfg.KafkaBrokers, "tracks_ingest")
-	defer kafka.CloseProducer()
-
-	// start kafka consumer
-	kafka.StartConsumer(cfg.KafkaBrokers, "tracks_ingest", "spotistats-group")
-
-	// start job worker
-	jobs.StartWorker(context.Background())
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -75,9 +62,10 @@ func runServe(cmd *cobra.Command, args []string) {
 	e.GET("/tracks/:id", handlers.GetTrackByID)
 	e.POST("/tracks", handlers.CreateTrack)
 
-	// job routes
-	e.POST("/jobs", handlers.CreateJob)
-	e.GET("/jobs/:id", handlers.GetJobStatus)
+	// stats routes
+	e.GET("/stats/genres", handlers.GetGenreStats)
+	e.GET("/stats/artists", handlers.GetArtistStats)
+	e.GET("/stats/years", handlers.GetYearStats)
 
 	log.Printf("starting server on :%s", cfg.Port)
 	e.Logger.Fatal(e.Start(":" + cfg.Port))

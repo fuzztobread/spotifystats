@@ -477,7 +477,6 @@
         // Initialize
         document.addEventListener('DOMContentLoaded', () => {
             loadTracks();
-            loadStats();
             loadGenreStats();
             loadArtistStats();
             loadYearStats();
@@ -565,102 +564,55 @@
             loadTracks(1, query);
         }
 
-        // Load stats
-        async function loadStats() {
-            try {
-                const res = await fetch(`${API}/tracks?limit=1`);
-                const data = await res.json();
-                document.getElementById('totalTracks').textContent = data.total?.toLocaleString() || '0';
-            } catch (err) {
-                console.error('Failed to load stats:', err);
-            }
-        }
-
-        // Genre stats
+        // Genre stats - direct API call
         async function loadGenreStats() {
             const container = document.getElementById('genreChart');
             container.innerHTML = '<div class="loading">Loading...</div>';
 
             try {
-                const res = await fetch(`${API}/jobs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'genre_stats' })
-                });
-                const job = await res.json();
-                
-                // Poll for result
-                const result = await pollJob(job.job_id);
-                renderBarChart(container, result, 'genre', 'count');
-                
-                document.getElementById('totalGenres').textContent = result.length;
+                const res = await fetch(`${API}/stats/genres`);
+                const data = await res.json();
+                renderBarChart(container, data, 'name', 'count');
+                document.getElementById('totalGenres').textContent = data.length;
             } catch (err) {
                 container.innerHTML = '<div class="loading">Failed to load</div>';
             }
         }
 
-        // Artist stats
+        // Artist stats - direct API call
         async function loadArtistStats() {
             const container = document.getElementById('artistChart');
             container.innerHTML = '<div class="loading">Loading...</div>';
 
             try {
-                const res = await fetch(`${API}/jobs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'artist_stats' })
-                });
-                const job = await res.json();
-                
-                const result = await pollJob(job.job_id);
-                renderBarChart(container, result.slice(0, 8), 'artist', 'count');
-                
-                document.getElementById('totalArtists').textContent = result.length + '+';
+                const res = await fetch(`${API}/stats/artists`);
+                const data = await res.json();
+                renderBarChart(container, data.slice(0, 8), 'name', 'count');
+                document.getElementById('totalArtists').textContent = data.length + '+';
             } catch (err) {
                 container.innerHTML = '<div class="loading">Failed to load</div>';
             }
         }
 
-        // Year stats
+        // Year stats - direct API call
         async function loadYearStats() {
             try {
-                const res = await fetch(`${API}/jobs`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ type: 'year_stats' })
-                });
-                const job = await res.json();
-                
-                const result = await pollJob(job.job_id);
-                renderYearChart(result);
-                
-                // Calculate avg duration placeholder
+                const res = await fetch(`${API}/stats/years`);
+                const data = await res.json();
+                renderYearChart(data.map(d => ({ year: parseInt(d.name), count: d.count })));
                 document.getElementById('avgDuration').textContent = '3:24';
             } catch (err) {
                 console.error('Failed to load year stats:', err);
             }
         }
 
-        // Poll job status
-        async function pollJob(jobId) {
-            for (let i = 0; i < 30; i++) {
-                const res = await fetch(`${API}/jobs/${jobId}`);
-                const job = await res.json();
-                
-                if (job.status === 'completed') {
-                    return job.result;
-                }
-                if (job.status === 'failed') {
-                    throw new Error('Job failed');
-                }
-                
-                await sleep(200);
-            }
-            throw new Error('Job timeout');
-        }
-
         // Render horizontal bar chart
         function renderBarChart(container, data, labelKey, valueKey) {
+            if (!data || !data.length) {
+                container.innerHTML = '<div class="loading">No data</div>';
+                return;
+            }
+            
             const max = Math.max(...data.map(d => d[valueKey]));
             
             container.innerHTML = data.map(d => `
@@ -751,8 +703,7 @@
 
                 if (res.ok) {
                     closeModal();
-                    // Wait a bit for Kafka to process
-                    await sleep(500);
+                    await sleep(1000);
                     loadTracks(1, '');
                 } else {
                     alert('Failed to add track');

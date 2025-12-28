@@ -3,8 +3,8 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
-	"spotistats/internal/kafka"
 	"spotistats/internal/models"
 	"spotistats/internal/repository"
 
@@ -81,12 +81,12 @@ func GetTrackByID(c echo.Context) error {
 
 // CreateTrack godoc
 // @Summary Create track
-// @Description Add a new track via Kafka queue
+// @Description Add a new track directly to database
 // @Tags tracks
 // @Accept json
 // @Produce json
 // @Param track body models.Track true "Track data"
-// @Success 202 {object} map[string]string
+// @Success 201 {object} models.Track
 // @Failure 400 {object} map[string]string
 // @Router /tracks [post]
 func CreateTrack(c echo.Context) error {
@@ -97,15 +97,16 @@ func CreateTrack(c echo.Context) error {
 		})
 	}
 
+	if track.TrackID == "" {
+		track.TrackID = "TRK" + time.Now().Format("20060102150405")
+	}
+
 	ctx := c.Request().Context()
-	if err := kafka.Publish(ctx, track.TrackID, track); err != nil {
+	if err := repository.InsertTrack(ctx, track); err != nil {
 		return c.JSON(http.StatusInternalServerError, map[string]string{
-			"error": "failed to publish",
+			"error": err.Error(),
 		})
 	}
 
-	return c.JSON(http.StatusAccepted, map[string]string{
-		"status":   "queued",
-		"track_id": track.TrackID,
-	})
+	return c.JSON(http.StatusCreated, track)
 }
