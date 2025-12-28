@@ -17,7 +17,9 @@ func main() {
 		log.Fatal("failed to load CSV:", err)
 	}
 	log.Printf("loaded %d tracks", len(tracks))
-
+	if len(tracks) > 0 {
+		log.Printf("first track: %+v", tracks[0])
+	}
 	handlers.Tracks = tracks
 
 	e := echo.New()
