@@ -2,10 +2,18 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"strconv"
+	"time"
 
+	"spotistats/internal/cache"
 	"spotistats/internal/database"
 	"spotistats/internal/models"
+
+	"github.com/redis/go-redis/v9"
 )
+
+const trackCacheTTL = 10 * time.Minute
 
 func InsertTrack(ctx context.Context, t models.Track) error {
 	query := `
@@ -39,23 +47,22 @@ func InsertTracks(ctx context.Context, tracks []models.Track) error {
 }
 
 func GetTracks(ctx context.Context, limit, offset int, query, genre, artist string) ([]models.Track, int, error) {
-	// count total
 	countSQL := `SELECT COUNT(*) FROM tracks WHERE 1=1`
 	args := []interface{}{}
 	argIndex := 1
 
 	if query != "" {
-		countSQL += ` AND LOWER(name) LIKE LOWER($` + itoa(argIndex) + `)`
+		countSQL += ` AND LOWER(name) LIKE LOWER($` + strconv.Itoa(argIndex) + `)`
 		args = append(args, "%"+query+"%")
 		argIndex++
 	}
 	if genre != "" {
-		countSQL += ` AND LOWER(genre) LIKE LOWER($` + itoa(argIndex) + `)`
+		countSQL += ` AND LOWER(genre) LIKE LOWER($` + strconv.Itoa(argIndex) + `)`
 		args = append(args, "%"+genre+"%")
 		argIndex++
 	}
 	if artist != "" {
-		countSQL += ` AND LOWER(artist) LIKE LOWER($` + itoa(argIndex) + `)`
+		countSQL += ` AND LOWER(artist) LIKE LOWER($` + strconv.Itoa(argIndex) + `)`
 		args = append(args, "%"+artist+"%")
 		argIndex++
 	}
@@ -66,7 +73,6 @@ func GetTracks(ctx context.Context, limit, offset int, query, genre, artist stri
 		return nil, 0, err
 	}
 
-	// fetch tracks
 	selectSQL := `
 		SELECT track_id, name, artist, spotify_preview_url, spotify_id,
 			tags, genre, year, duration_ms, danceability, energy,
@@ -79,22 +85,22 @@ func GetTracks(ctx context.Context, limit, offset int, query, genre, artist stri
 	argIndex = 1
 
 	if query != "" {
-		selectSQL += ` AND LOWER(name) LIKE LOWER($` + itoa(argIndex) + `)`
+		selectSQL += ` AND LOWER(name) LIKE LOWER($` + strconv.Itoa(argIndex) + `)`
 		args = append(args, "%"+query+"%")
 		argIndex++
 	}
 	if genre != "" {
-		selectSQL += ` AND LOWER(genre) LIKE LOWER($` + itoa(argIndex) + `)`
+		selectSQL += ` AND LOWER(genre) LIKE LOWER($` + strconv.Itoa(argIndex) + `)`
 		args = append(args, "%"+genre+"%")
 		argIndex++
 	}
 	if artist != "" {
-		selectSQL += ` AND LOWER(artist) LIKE LOWER($` + itoa(argIndex) + `)`
+		selectSQL += ` AND LOWER(artist) LIKE LOWER($` + strconv.Itoa(argIndex) + `)`
 		args = append(args, "%"+artist+"%")
 		argIndex++
 	}
 
-	selectSQL += ` ORDER BY name LIMIT $` + itoa(argIndex) + ` OFFSET $` + itoa(argIndex+1)
+	selectSQL += ` ORDER BY name LIMIT $` + strconv.Itoa(argIndex) + ` OFFSET $` + strconv.Itoa(argIndex+1)
 	args = append(args, limit, offset)
 
 	rows, err := database.Pool.Query(ctx, selectSQL, args...)
@@ -122,6 +128,19 @@ func GetTracks(ctx context.Context, limit, offset int, query, genre, artist stri
 }
 
 func GetTrackByID(ctx context.Context, id string) (*models.Track, error) {
+	cacheKey := fmt.Sprintf("track:%s", id)
+
+	// try cache first
+	var cached models.Track
+	err := cache.Get(ctx, cacheKey, &cached)
+	if err == nil {
+		return &cached, nil
+	}
+	if err != redis.Nil {
+		// log error but continue to db
+	}
+
+	// fetch from db
 	query := `
 		SELECT track_id, name, artist, spotify_preview_url, spotify_id,
 			tags, genre, year, duration_ms, danceability, energy,
@@ -131,7 +150,7 @@ func GetTrackByID(ctx context.Context, id string) (*models.Track, error) {
 	`
 
 	var t models.Track
-	err := database.Pool.QueryRow(ctx, query, id).Scan(
+	err = database.Pool.QueryRow(ctx, query, id).Scan(
 		&t.TrackID, &t.Name, &t.Artist, &t.SpotifyPreviewURL, &t.SpotifyID,
 		&t.Tags, &t.Genre, &t.Year, &t.DurationMS, &t.Danceability, &t.Energy,
 		&t.Key, &t.Loudness, &t.Mode, &t.Speechiness, &t.Acousticness,
@@ -141,9 +160,8 @@ func GetTrackByID(ctx context.Context, id string) (*models.Track, error) {
 		return nil, err
 	}
 
-	return &t, nil
-}
+	// cache it
+	cache.Set(ctx, cacheKey, &t, trackCacheTTL)
 
-func itoa(i int) string {
-	return string(rune('0' + i))
+	return &t, nil
 }
