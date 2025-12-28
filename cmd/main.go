@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 
 	"spotistats/internal/cache"
 	"spotistats/internal/database"
 	"spotistats/internal/handlers"
+	"spotistats/internal/jobs"
 	"spotistats/internal/kafka"
 
 	"github.com/labstack/echo/v4"
@@ -33,8 +35,11 @@ func main() {
 	kafka.InitProducer(brokers, "tracks_ingest")
 	defer kafka.CloseProducer()
 
-	// start consumer
+	// start kafka consumer
 	kafka.StartConsumer(brokers, "tracks_ingest", "spotistats-group")
+
+	// start job worker
+	jobs.StartWorker(context.Background())
 
 	e := echo.New()
 	e.Use(middleware.Logger())
@@ -46,9 +51,14 @@ func main() {
 		})
 	})
 
+	// track routes
 	e.GET("/tracks", handlers.GetTracks)
 	e.GET("/tracks/:id", handlers.GetTrackByID)
 	e.POST("/tracks", handlers.CreateTrack)
+
+	// job routes
+	e.POST("/jobs", handlers.CreateJob)
+	e.GET("/jobs/:id", handlers.GetJobStatus)
 
 	e.Logger.Fatal(e.Start(":8080"))
 }
