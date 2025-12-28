@@ -3,7 +3,8 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-
+	"spotistats/internal/kafka"
+	"spotistats/internal/models"
 	"spotistats/internal/repository"
 
 	"github.com/labstack/echo/v4"
@@ -40,7 +41,27 @@ func GetTracks(c echo.Context) error {
 		"results": tracks,
 	})
 }
+func CreateTrack(c echo.Context) error {
+	var track models.Track
+	if err := c.Bind(&track); err != nil {
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "invalid request body",
+		})
+	}
 
+	// publish to kafka
+	ctx := c.Request().Context()
+	if err := kafka.Publish(ctx, track.TrackID, track); err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "failed to publish",
+		})
+	}
+
+	return c.JSON(http.StatusAccepted, map[string]string{
+		"status":   "queued",
+		"track_id": track.TrackID,
+	})
+}
 func GetTrackByID(c echo.Context) error {
 	id := c.Param("id")
 
