@@ -1,4 +1,4 @@
-package main
+package commands
 
 import (
 	"context"
@@ -6,47 +6,47 @@ import (
 	"net/http"
 
 	"spotistats/internal/cache"
+	"spotistats/internal/config"
 	"spotistats/internal/database"
 	"spotistats/internal/handlers"
 	"spotistats/internal/jobs"
 	"spotistats/internal/kafka"
 
-	_ "spotistats/docs" // swagger docs
+	_ "spotistats/docs"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	echoSwagger "github.com/swaggo/echo-swagger"
+	"github.com/spf13/cobra"
 )
 
-// @title SpotiStats API
-// @version 1.0
-// @description Music analytics backend with Kafka, Redis, and Postgres
+var serveCmd = &cobra.Command{
+	Use:   "serve",
+	Short: "Start the API server",
+	Run:   runServe,
+}
 
-// @host localhost:8080
-// @BasePath /
+func runServe(cmd *cobra.Command, args []string) {
+	cfg := config.Load()
 
-func main() {
 	// connect to postgres
-	err := database.Connect("postgres://spotistats:spotistats@localhost:5432/spotistats")
-	if err != nil {
+	if err := database.Connect(cfg.DatabaseURL()); err != nil {
 		log.Fatal("failed to connect to db:", err)
 	}
 	defer database.Close()
 
 	// connect to redis
-	err = cache.Connect("localhost:6379")
-	if err != nil {
+	if err := cache.Connect(cfg.RedisAddr); err != nil {
 		log.Fatal("failed to connect to redis:", err)
 	}
 	defer cache.Close()
 
 	// init kafka
-	brokers := []string{"localhost:9092"}
-	kafka.InitProducer(brokers, "tracks_ingest")
+	kafka.InitProducer(cfg.KafkaBrokers, "tracks_ingest")
 	defer kafka.CloseProducer()
 
 	// start kafka consumer
-	kafka.StartConsumer(brokers, "tracks_ingest", "spotistats-group")
+	kafka.StartConsumer(cfg.KafkaBrokers, "tracks_ingest", "spotistats-group")
 
 	// start job worker
 	jobs.StartWorker(context.Background())
@@ -54,10 +54,16 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.Logger())
 	e.Use(middleware.Recover())
+	e.Use(middleware.CORS())
 
 	// swagger
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
 
+	// dashboard
+	e.GET("/", handlers.ServeDashboard)
+	e.Static("/static", "web/static")
+
+	// health check
 	e.GET("/health", func(c echo.Context) error {
 		return c.JSON(http.StatusOK, map[string]string{
 			"status": "ok",
@@ -73,9 +79,6 @@ func main() {
 	e.POST("/jobs", handlers.CreateJob)
 	e.GET("/jobs/:id", handlers.GetJobStatus)
 
-	// Add after other routes
-	e.GET("/", handlers.ServeDashboard)
-	e.Static("/static", "web/static")
-
-	e.Logger.Fatal(e.Start(":8080"))
+	log.Printf("starting server on :%s", cfg.Port)
+	e.Logger.Fatal(e.Start(":" + cfg.Port))
 }

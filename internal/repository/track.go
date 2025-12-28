@@ -45,7 +45,11 @@ func InsertTracks(ctx context.Context, tracks []models.Track) error {
 	}
 	return nil
 }
-
+func CountTracks(ctx context.Context) (int, error) {
+	var count int
+	err := database.Pool.QueryRow(ctx, "SELECT COUNT(*) FROM tracks").Scan(&count)
+	return count, err
+}
 func GetTracks(ctx context.Context, limit, offset int, query, genre, artist string) ([]models.Track, int, error) {
 	countSQL := `SELECT COUNT(*) FROM tracks WHERE 1=1`
 	args := []interface{}{}
