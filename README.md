@@ -14,7 +14,7 @@ Music analytics backend with Go, Kafka, Redis, and Postgres.
 ## Quick Start
 ```bash
 # Clone
-git clone https://github.com/yourusername/spotistats.git
+git clone https://github.com/fuzztobread/spotifystats.git
 cd spotistats
 
 # Setup env
