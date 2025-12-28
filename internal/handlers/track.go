@@ -3,14 +3,11 @@ package handlers
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
-	"spotistats/internal/models"
+	"spotistats/internal/repository"
 
 	"github.com/labstack/echo/v4"
 )
-
-var Tracks []models.Track
 
 func GetTracks(c echo.Context) error {
 	page, _ := strconv.Atoi(c.QueryParam("page"))
@@ -23,56 +20,36 @@ func GetTracks(c echo.Context) error {
 		limit = 20
 	}
 
-	// search params
-	query := strings.ToLower(c.QueryParam("q"))
-	genre := strings.ToLower(c.QueryParam("genre"))
-	artist := strings.ToLower(c.QueryParam("artist"))
+	query := c.QueryParam("q")
+	genre := c.QueryParam("genre")
+	artist := c.QueryParam("artist")
 
-	// filter tracks
-	var filtered []models.Track
-	for _, t := range Tracks {
-		if query != "" && !strings.Contains(strings.ToLower(t.Name), query) {
-			continue
-		}
-		if genre != "" && !strings.Contains(strings.ToLower(t.Genre), genre) {
-			continue
-		}
-		if artist != "" && !strings.Contains(strings.ToLower(t.Artist), artist) {
-			continue
-		}
-		filtered = append(filtered, t)
-	}
+	offset := (page - 1) * limit
 
-	// paginate
-	total := len(filtered)
-	start := (page - 1) * limit
-	end := start + limit
-
-	if start > total {
-		start = total
-	}
-	if end > total {
-		end = total
+	tracks, total, err := repository.GetTracks(c.Request().Context(), limit, offset, query, genre, artist)
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": err.Error(),
+		})
 	}
 
 	return c.JSON(http.StatusOK, map[string]interface{}{
 		"total":   total,
 		"page":    page,
 		"limit":   limit,
-		"results": filtered[start:end],
+		"results": tracks,
 	})
 }
 
 func GetTrackByID(c echo.Context) error {
 	id := c.Param("id")
 
-	for _, track := range Tracks {
-		if track.TrackID == id || track.SpotifyID == id {
-			return c.JSON(http.StatusOK, track)
-		}
+	track, err := repository.GetTrackByID(c.Request().Context(), id)
+	if err != nil {
+		return c.JSON(http.StatusNotFound, map[string]string{
+			"error": "track not found",
+		})
 	}
 
-	return c.JSON(http.StatusNotFound, map[string]string{
-		"error": "track not found",
-	})
+	return c.JSON(http.StatusOK, track)
 }
