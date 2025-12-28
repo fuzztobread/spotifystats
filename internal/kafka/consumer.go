@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"time"
 
 	"spotistats/internal/models"
 	"spotistats/internal/repository"
@@ -16,8 +17,9 @@ func StartConsumer(brokers []string, topic, groupID string) {
 		Brokers:  brokers,
 		Topic:    topic,
 		GroupID:  groupID,
-		MinBytes: 10e3,
+		MinBytes: 1,    // read immediately
 		MaxBytes: 10e6,
+		MaxWait:  1 * time.Second,
 	})
 
 	log.Printf("kafka consumer started for topic: %s", topic)
@@ -36,7 +38,6 @@ func StartConsumer(brokers []string, topic, groupID string) {
 				continue
 			}
 
-			// insert to database
 			if err := repository.InsertTrack(context.Background(), track); err != nil {
 				log.Printf("[DB INSERT ERROR] %v", err)
 				continue
